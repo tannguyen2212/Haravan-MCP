@@ -53,6 +53,10 @@ program
     'Transport mode: stdio, http',
     'stdio'
   )
+  .option(
+    '--server-api-key <apiKey>',
+    'Protect public HTTP endpoint with Authorization: Bearer <apiKey> (or set MCP_SERVER_API_KEY env var)'
+  )
   .option('-p, --port <port>', 'Port for HTTP mode', '3000')
   .option('--oauth', 'Use OAuth (requires stored token from login)')
   .option('--debug', 'Enable debug logging')
@@ -86,7 +90,14 @@ program
       logger.error(
         'No access token provided. Use -t <token>, set HARAVAN_ACCESS_TOKEN env var, or run `haravan-mcp login` first.'
       );
-      process.exit(1);
+      // In HTTP mode, token may be provided by the client per session via X-Haravan-Access-Token.
+      // Still require a token in stdio mode because there is no per-request header channel.
+      if (options.mode !== 'http') {
+        process.exit(1);
+      }
+      logger.warn(
+        'No static access token configured. HTTP mode will require clients to provide X-Haravan-Access-Token per session.'
+      );
     }
 
     // Resolve tool filter
@@ -104,6 +115,7 @@ program
       mode: options.mode === 'http' ? 'http' : 'stdio',
       port: parseInt(options.port),
       debug: options.debug || false,
+      serverApiKey: options.serverApiKey || process.env.MCP_SERVER_API_KEY,
     });
 
     const { mcpServer, toolCount, createServer } = initHaravanMcpServer(config);
@@ -113,7 +125,7 @@ program
     logger.info(`Transport: ${config.mode}`);
 
     if (config.mode === 'http') {
-      await startHttpTransport(createServer, config.port);
+      await startHttpTransport(createServer, config.port, config.serverApiKey);
     } else {
       await startStdioTransport(mcpServer);
     }

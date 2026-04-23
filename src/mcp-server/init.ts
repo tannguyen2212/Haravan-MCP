@@ -18,7 +18,7 @@ export interface InitResult {
   mcpServer: McpServer;
   toolCount: number;
   /** Factory to create new server instances (for multi-session HTTP transport). */
-  createServer: () => McpServer;
+  createServer: (overrides?: Partial<HaravanMcpConfig>) => McpServer;
 }
 
 /**
@@ -63,13 +63,14 @@ export function initHaravanMcpServer(config: HaravanMcpConfig): InitResult {
   }
 
   // Factory for multi-session transports (HTTP/SSE)
-  const createServer = (): McpServer => {
+  const createServer = (overrides?: Partial<HaravanMcpConfig>): McpServer => {
+    const effectiveConfig = { ...config, ...overrides };
     const newServer = new McpServer(
       { name: 'haravan-mcp', version: VERSION },
       { capabilities: { tools: {} } }
     );
     for (const tool of enabledTools) {
-      registerTool(newServer, tool, middlewares, config);
+      registerTool(newServer, tool, middlewares, effectiveConfig);
     }
     return newServer;
   };
