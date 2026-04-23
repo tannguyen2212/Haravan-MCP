@@ -10,6 +10,11 @@ export interface HaravanMcpConfig {
   scope?: string[];
   port: number;
   debug: boolean;
+  /**
+   * Optional API key used to protect the public HTTP MCP endpoint.
+   * Clients should send: Authorization: Bearer <MCP_SERVER_API_KEY>
+   */
+  serverApiKey?: string;
 }
 
 export const DEFAULT_CONFIG: HaravanMcpConfig = {
@@ -19,6 +24,7 @@ export const DEFAULT_CONFIG: HaravanMcpConfig = {
   oauth: false,
   port: 3000,
   debug: false,
+  serverApiKey: process.env.MCP_SERVER_API_KEY,
 };
 
 const ALLOWED_DOMAIN_PATTERNS = [

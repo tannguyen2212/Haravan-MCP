@@ -1,3 +1,49 @@
+# HTTP public deployment with client-supplied Haravan token
+
+This deployment mode is intended for Dokploy / public HTTP MCP setups where the server itself must not store a static `HARAVAN_ACCESS_TOKEN`.
+
+## Environment
+
+Set only a server protection key:
+
+```env
+MCP_SERVER_API_KEY=replace-with-a-long-random-secret
+PORT=3000
+```
+
+Do **not** set `HARAVAN_ACCESS_TOKEN` in this mode.
+
+## Client headers
+
+For the first `POST /mcp` request that creates a session, clients must send:
+
+```http
+Authorization: Bearer <MCP_SERVER_API_KEY>
+X-Haravan-Access-Token: <HARAVAN_PRIVATE_APP_TOKEN>
+```
+
+After the session is established, subsequent requests only need:
+
+```http
+Authorization: Bearer <MCP_SERVER_API_KEY>
+Mcp-Session-Id: <session-id>
+```
+
+Changing Haravan token mid-session is intentionally rejected. Open a new session instead.
+
+## Example startup
+
+```bash
+npx -y haravan-mcp mcp -m http -p 3000 --server-api-key "$MCP_SERVER_API_KEY"
+```
+
+## Security notes
+
+- Always deploy behind HTTPS.
+- Never log or persist `X-Haravan-Access-Token`.
+- Protect the endpoint with `MCP_SERVER_API_KEY` or another reverse-proxy auth layer.
+- Prefer short-lived session lifetimes at the ingress layer if available.
+
 # Hướng Dẫn Triển Khai — Haravan MCP
 
 ---
