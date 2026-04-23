@@ -19,7 +19,7 @@ export async function startHttpTransport(
   const sessions = new Map<string, {
     transport: StreamableHTTPServerTransport;
     server: McpServer;
-    hasHaravanToken: boolean;
+    haravanToken: string;
   }>();
 
   function getBearerToken(authHeader?: string | string[]): string | undefined {
@@ -46,12 +46,21 @@ export async function startHttpTransport(
     if (sessionId && sessions.has(sessionId)) {
       const session = sessions.get(sessionId)!;
 
-      // Optional session token rotation: if client sends a new token on an existing session,
-      // require opening a new session instead of mutating auth mid-flight.
-      const tokenOnExistingSession = req.headers['x-haravan-access-token'];
-      if (tokenOnExistingSession) {
+      // Many MCP clients re-send custom headers on every request.
+      // Accept repeated X-Haravan-Access-Token if it matches the token already bound to this session.
+      // Reject only when the client attempts to switch to a different token mid-session.
+      const tokenOnExistingSessionHeader = req.headers['x-haravan-access-token'];
+      const tokenOnExistingSession =
+        typeof tokenOnExistingSessionHeader === 'string'
+          ? tokenOnExistingSessionHeader.trim()
+          : undefined;
+
+      if (
+        tokenOnExistingSession &&
+        tokenOnExistingSession !== session.haravanToken
+      ) {
         res.status(400).json({
-          error: 'Session already initialized. Open a new MCP session to change Haravan token.',
+          error: 'Session already initialized with a different Haravan token. Open a new MCP session to change token.',
         });
         return;
       }
@@ -86,7 +95,7 @@ export async function startHttpTransport(
       sessions.set(newSessionId, {
         transport,
         server,
-        hasHaravanToken: true,
+        haravanToken,
       });
       logger.info(`New HTTP session: ${newSessionId}`);
     }
