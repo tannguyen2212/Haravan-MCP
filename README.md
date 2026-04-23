@@ -25,22 +25,29 @@ Thêm vào file cấu hình MCP:
 }
 ```
 
-### Sử dụng với Docker (HTTP mode)
+### Sử dụng với Docker / Dokploy (HTTP mode, client truyền token theo session)
 
 ```bash
 # Clone repo
 git clone <repo-url> && cd HaravanMCP
 
-# Cấu hình token
+# Chỉ cấu hình khóa bảo vệ endpoint public
 cp docker/.env.example docker/.env
-# Sửa docker/.env → điền HARAVAN_ACCESS_TOKEN
+# Sửa docker/.env → điền MCP_SERVER_API_KEY
+# KHÔNG cần HARAVAN_ACCESS_TOKEN nếu muốn client tự truyền token
 
 # Chạy
-docker compose -f docker/docker-compose.yml up -d
+MCP_SERVER_API_KEY=your-long-random-secret \
+node dist/cli.js mcp -m http -p 3000 --server-api-key "$MCP_SERVER_API_KEY"
 
-# MCP endpoint: http://localhost:4567/mcp
-# Health check: http://localhost:4567/health
+# MCP endpoint: http://localhost:3000/mcp
+# Health check: http://localhost:3000/health
 ```
+
+**Flow mới cho HTTP public:**
+- Server **không cần** giữ `HARAVAN_ACCESS_TOKEN` cố định
+- Client gửi `X-Haravan-Access-Token` ở request đầu tiên để tạo session
+- Có thể bảo vệ endpoint bằng `Authorization: Bearer <MCP_SERVER_API_KEY>`
 
 ### Sử dụng với OAuth 2.0
 
@@ -144,18 +151,19 @@ haravan-mcp mcp -t <token> --tools "preset.smart,haravan_webhooks_list"
 ## CLI Commands
 
 ```bash
-haravan-mcp mcp -t <token>                   # Start server (stdio)
-haravan-mcp mcp -t <token> -m http -p 3000   # Start server (HTTP)
-haravan-mcp mcp -t <token> --tools "preset.smart"  # Custom tools
+haravan-mcp mcp -t <token>                                # Start server (stdio)
+haravan-mcp mcp -t <token> --tools "preset.smart"        # Custom tools
+haravan-mcp mcp -m http -p 3000 --server-api-key "$MCP_SERVER_API_KEY"   # HTTP public mode, client supplies Haravan token
+haravan-mcp mcp -t <token> -m http -p 3000                # HTTP mode with static server-side token (legacy/simple mode)
 
-haravan-mcp login -a <app_id> -s <secret>    # OAuth login
-haravan-mcp whoami                            # Show stored tokens
-haravan-mcp logout -a <app_id>               # Remove token
-haravan-mcp logout --all                      # Remove all tokens
+haravan-mcp login -a <app_id> -s <secret>                 # OAuth login
+haravan-mcp whoami                                        # Show stored tokens
+haravan-mcp logout -a <app_id>                            # Remove token
+haravan-mcp logout --all                                  # Remove all tokens
 
-haravan-mcp tools                             # List all tools
-haravan-mcp tools --presets                   # Show presets
-haravan-mcp tools --project products          # Filter by category
+haravan-mcp tools                                         # List all tools
+haravan-mcp tools --presets                               # Show presets
+haravan-mcp tools --project products                      # Filter by category
 ```
 
 ---
@@ -259,7 +267,8 @@ npm run format       # Prettier format
 
 | Variable | Mô tả |
 |----------|-------|
-| `HARAVAN_ACCESS_TOKEN` | Private app token |
+| `HARAVAN_ACCESS_TOKEN` | Private app token cho stdio mode hoặc HTTP mode kiểu cũ (server giữ token tĩnh) |
+| `MCP_SERVER_API_KEY` | API key bảo vệ HTTP endpoint public; client gửi qua `Authorization: Bearer ...` |
 | `HARAVAN_APP_ID` | OAuth App ID |
 | `HARAVAN_APP_SECRET` | OAuth App Secret |
 
@@ -303,11 +312,19 @@ Two-layer design:
 }
 ```
 
-### Docker
+### Docker / Dokploy / Public HTTP
 
 ```bash
+# Static token mode (cũ, đơn giản)
 docker compose -f docker/docker-compose.yml up -d
 # MCP endpoint: http://localhost:4567/mcp
+
+# Public HTTP mode (khuyên dùng cho multi-tenant / client tự mang token)
+MCP_SERVER_API_KEY=your-long-random-secret \
+haravan-mcp mcp -m http -p 3000 --server-api-key "$MCP_SERVER_API_KEY"
+# First request headers:
+#   Authorization: Bearer <MCP_SERVER_API_KEY>
+#   X-Haravan-Access-Token: <HARAVAN_PRIVATE_APP_TOKEN>
 ```
 
 ### Documentation
