@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HaravanMcpConfig } from '../utils/config';
-import { allTools, filterTools } from '../mcp-tool/registry';
+import { allTools, filterTools, filterToolsByAccess, inferToolAccess } from '../mcp-tool/registry';
 import { resolveToolFilter } from '../mcp-tool/presets';
 import { composeMiddleware } from '../mcp-tool/middleware/chain';
 import { errorHandlerMiddleware } from '../mcp-tool/middleware/error-handler';
@@ -42,11 +42,13 @@ export function initHaravanMcpServer(config: HaravanMcpConfig): InitResult {
     ? config.tools
     : resolveToolFilter('preset.default');
 
-  // Filter tools
-  const enabledTools = filterTools(allTools, toolFilter);
+  // Filter tools by configured preset/project/name, then by client access.
+  // HTTP sessions can pass X-Haravan-MCP-Access: read|write.
+  const configuredTools = filterTools(allTools, toolFilter);
+  const enabledTools = filterToolsByAccess(configuredTools, config.clientAccess);
 
   logger.info(
-    `Registering ${enabledTools.length}/${allTools.length} tools`
+    `Registering ${enabledTools.length}/${allTools.length} tools (configured=${configuredTools.length}, access=${config.clientAccess || 'read'})`
   );
 
   // Build middleware chain
@@ -69,7 +71,8 @@ export function initHaravanMcpServer(config: HaravanMcpConfig): InitResult {
       { name: 'haravan-mcp', version: VERSION },
       { capabilities: { tools: {} } }
     );
-    for (const tool of enabledTools) {
+    const sessionTools = filterToolsByAccess(configuredTools, effectiveConfig.clientAccess);
+    for (const tool of sessionTools) {
       registerTool(newServer, tool, middlewares, effectiveConfig);
     }
     return newServer;
@@ -96,13 +99,26 @@ function registerTool(
     tool.description,
     schemaShape,
     async (params: any, _extra: any) => {
+      const clientAccess = config.clientAccess || 'read';
+      if (inferToolAccess(tool) === 'write' && clientAccess !== 'write') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Tool ${tool.name} requires write access. Start the HTTP MCP session with X-Haravan-MCP-Access: write.`,
+            },
+          ],
+          isError: true,
+        } as any;
+      }
+
       const ctx: MiddlewareContext = {
         tool,
         params: { ...params },
         accessToken: config.accessToken || '',
         domain: config.domain,
         webhookDomain: config.webhookDomain,
-        meta: {},
+        meta: { clientAccess },
       };
 
       const result = await composedHandler(ctx);

@@ -8,6 +8,8 @@ export interface HaravanMcpConfig {
   mode: 'stdio' | 'http';
   oauth: boolean;
   scope?: string[];
+  /** Client permission bound to this MCP server/session. Read exposes read tools only; write exposes read + write tools. */
+  clientAccess?: 'read' | 'write';
   port: number;
   debug: boolean;
   /**
@@ -22,6 +24,7 @@ export const DEFAULT_CONFIG: HaravanMcpConfig = {
   webhookDomain: 'https://webhook.haravan.com',
   mode: 'stdio',
   oauth: false,
+  clientAccess: 'read',
   port: 3000,
   debug: false,
   serverApiKey: process.env.MCP_SERVER_API_KEY,

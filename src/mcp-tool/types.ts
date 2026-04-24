@@ -15,6 +15,8 @@ export interface McpTool {
   path: string;
   /** Required scopes, e.g., ["com.read_customers"] */
   scopes: string[];
+  /** Access level required by this tool. Defaults to read for GET/read-scope tools, write otherwise. */
+  access?: 'read' | 'write';
   /** Whether this is a webhook API (uses webhook domain) */
   isWebhook?: boolean;
   /** Custom handler override */

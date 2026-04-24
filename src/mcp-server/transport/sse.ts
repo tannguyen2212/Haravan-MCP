@@ -20,6 +20,7 @@ export async function startHttpTransport(
     transport: StreamableHTTPServerTransport;
     server: McpServer;
     haravanToken: string;
+    clientAccess: 'read' | 'write';
   }>();
 
   function getBearerToken(authHeader?: string | string[]): string | undefined {
@@ -36,6 +37,14 @@ export async function startHttpTransport(
       return false;
     }
     return true;
+  }
+
+  function parseClientAccess(header: string | string[] | undefined): 'read' | 'write' {
+    if (Array.isArray(header)) header = header[0];
+    const value = header?.trim().toLowerCase();
+    return value === 'write' || value === 'read-write' || value === 'read_write' || value === 'rw'
+      ? 'write'
+      : 'read';
   }
 
   app.post('/mcp', async (req, res) => {
@@ -65,6 +74,14 @@ export async function startHttpTransport(
         return;
       }
 
+      const accessOnExistingSession = parseClientAccess(req.headers['x-haravan-mcp-access']);
+      if (accessOnExistingSession !== session.clientAccess) {
+        res.status(400).json({
+          error: 'Session already initialized with a different MCP access level. Open a new MCP session to change X-Haravan-MCP-Access.',
+        });
+        return;
+      }
+
       await session.transport.handleRequest(req, res, req.body);
       return;
     }
@@ -80,11 +97,13 @@ export async function startHttpTransport(
       return;
     }
 
+    const clientAccess = parseClientAccess(req.headers['x-haravan-mcp-access']);
+
     // New session
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
     });
-    const server = createServer({ accessToken: haravanToken });
+    const server = createServer({ accessToken: haravanToken, clientAccess });
 
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
@@ -96,8 +115,9 @@ export async function startHttpTransport(
         transport,
         server,
         haravanToken,
+        clientAccess,
       });
-      logger.info(`New HTTP session: ${newSessionId}`);
+      logger.info(`New HTTP session: ${newSessionId} (access=${clientAccess})`);
     }
 
     // Cleanup on close
@@ -137,6 +157,7 @@ export async function startHttpTransport(
       status: 'ok',
       auth: serverApiKey ? 'protected' : 'open',
       tokenMode: 'client-header-per-session',
+      accessHeader: 'X-Haravan-MCP-Access: read | write',
     });
   });
 
@@ -148,5 +169,6 @@ export async function startHttpTransport(
       logger.warn('HTTP auth is DISABLED. Public deployment without MCP_SERVER_API_KEY is unsafe.');
     }
     logger.info('Clients must send X-Haravan-Access-Token on the first POST /mcp request of each session.');
+    logger.info('Clients may send X-Haravan-MCP-Access: read (default) or write on the first POST /mcp request.');
   });
 }

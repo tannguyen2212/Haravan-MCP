@@ -4,12 +4,22 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     container_name: haravan-mcp
-    ports:
-      - 4567
     env_file:
       - .env
     environment:
       - NODE_ENV=production
+    command:
+      - node
+      - dist/cli.js
+      - mcp
+      - --mode
+      - http
+      - --port
+      - "3000"
+      - --tools
+      - all
+      - --server-api-key
+      - ${MCP_SERVER_API_KEY}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]

@@ -36,7 +36,35 @@ export const allTools: McpTool[] = [
   ...shopTools,
   ...webhookTools,
   ...contentTools,
-];
+].map(normalizeToolAccess);
+
+/**
+ * Infer read/write access for legacy tool definitions.
+ *
+ * Read tools are safe list/get/count/search/report calls. Write tools include any
+ * non-GET endpoint, webhook subscription changes, or tools requiring write scopes.
+ */
+export function inferToolAccess(tool: McpTool): 'read' | 'write' {
+  if (tool.access) return tool.access;
+
+  const method = tool.httpMethod.toUpperCase();
+  const hasWriteScope = tool.scopes.some((scope) => scope.includes('.write_') || scope.startsWith('web.write_'));
+
+  if (method === 'GET' && !hasWriteScope) return 'read';
+  return 'write';
+}
+
+export function normalizeToolAccess(tool: McpTool): McpTool {
+  return { ...tool, access: inferToolAccess(tool) };
+}
+
+export function filterToolsByAccess(
+  tools: McpTool[],
+  clientAccess: 'read' | 'write' = 'read'
+): McpTool[] {
+  if (clientAccess === 'write') return tools;
+  return tools.filter((tool) => inferToolAccess(tool) === 'read');
+}
 
 /**
  * Get all unique project names.
