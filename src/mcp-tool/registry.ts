@@ -10,6 +10,7 @@ import { contentTools } from './tools/content';
 import { orderSmartTools } from './tools/smart/orders-smart';
 import { inventorySmartTools } from './tools/smart/inventory-smart';
 import { customerSmartTools } from './tools/smart/customers-smart';
+import { productContextSmartTools } from './tools/smart/product-context-smart';
 
 /**
  * All available Haravan MCP tools.
@@ -21,10 +22,11 @@ import { customerSmartTools } from './tools/smart/customers-smart';
  * Claude Skill layer, NOT by smart tools — avoids overlap.
  */
 export const allTools: McpTool[] = [
-  // Smart tools (7 total)
+  // Smart tools (server-side aggregation/context)
   ...orderSmartTools,
   ...inventorySmartTools,
   ...customerSmartTools,
+  ...productContextSmartTools,
   // Base API wrappers
   ...customerTools,
   ...customerAddressTools,
@@ -127,6 +129,7 @@ export const PRESETS: Record<string, string[]> = {
     'hrv_stock_reorder_plan',
     'hrv_inventory_imbalance',
     'hrv_customer_segments',
+    'hrv_product_context',
   ],
 
   // ===== Default: Smart + detail tools for drill-down =====
@@ -139,6 +142,7 @@ export const PRESETS: Record<string, string[]> = {
     'hrv_stock_reorder_plan',
     'hrv_inventory_imbalance',
     'hrv_customer_segments',
+    'hrv_product_context',
     // Detail tools for drill-down
     'haravan_shop_get',
     'haravan_locations_list',
