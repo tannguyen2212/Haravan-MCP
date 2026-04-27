@@ -6,6 +6,7 @@ import { inventoryTools } from './tools/inventory';
 import { shopTools } from './tools/shop';
 import { webhookTools } from './tools/webhooks';
 import { contentTools } from './tools/content';
+import { discountTools } from './tools/discounts';
 // Smart tools (server-side aggregation — things Claude can't do efficiently)
 import { orderSmartTools } from './tools/smart/orders-smart';
 import { inventorySmartTools } from './tools/smart/inventory-smart';
@@ -38,6 +39,7 @@ export const allTools: McpTool[] = [
   ...shopTools,
   ...webhookTools,
   ...contentTools,
+  ...discountTools,
 ].map(normalizeToolAccess);
 
 /**
@@ -154,6 +156,9 @@ export const PRESETS: Record<string, string[]> = {
     'haravan_customers_get',
     'haravan_customers_search',
     'haravan_inventory_locations',
+    'haravan_discounts_list',
+    'haravan_promotions_list',
+    'haravan_promotions_get',
   ],
   'preset.light': [
     'haravan_shop_get',
@@ -236,5 +241,14 @@ export const PRESETS: Record<string, string[]> = {
     'haravan_webhooks_list',
     'haravan_webhooks_subscribe',
     'haravan_webhooks_unsubscribe',
+  ],
+  'preset.discounts': [
+    'haravan_discounts_list',
+    'haravan_promotions_list',
+    'haravan_promotions_get',
+    'haravan_promotions_create',
+    'haravan_promotions_enable',
+    'haravan_promotions_disable',
+    'haravan_promotions_delete',
   ],
 };
