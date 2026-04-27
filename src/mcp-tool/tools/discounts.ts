@@ -13,33 +13,35 @@ const promotionVariantSchema = z.object({
   variant_id: z.number().describe('Variant ID'),
 });
 
-const promotionSchema = z.object({
-  name: z.string().describe('Promotion name'),
+const baseDiscountSchema = z.object({
   starts_at: z.string().optional().describe('Start time in ISO 8601 format'),
   ends_at: z.string().nullable().optional().describe('End time in ISO 8601 format'),
   discount_type: z
     .enum(['fixed_amount', 'percentage', 'same_price'])
     .optional()
     .describe('Discount type: fixed amount, percentage, or same price'),
-  value: z.number().optional().describe('Promotion value. Percentage if discount_type=percentage.'),
+  value: z.number().optional().describe('Discount value. Percentage if discount_type=percentage.'),
   take_type: z
     .enum(['fixed_amount', 'percentage'])
     .optional()
-    .describe('Take type used by newer promotion rules'),
+    .describe('Take type used by newer discount rules'),
   applies_to_resource: z
-    .enum(['product', 'collection', 'product_variant'])
+    .enum(['product', 'collection', 'product_variant', 'group_customer'])
     .nullable()
     .optional()
-    .describe('Resource the promotion applies to; null means all orders'),
+    .describe('Resource the discount applies to; null means all orders'),
   applies_to_quantity: z.number().optional().describe('Minimum item quantity required'),
   applies_to_id: z.number().nullable().optional().describe('Legacy applied resource ID'),
-  order_over: z.number().nullable().optional().describe('Minimum order amount required'),
+  minimum_order_amount: z.number().nullable().optional().describe('Minimum order amount required'),
+  order_over: z.number().nullable().optional().describe('Minimum order amount required by newer rules'),
   promotion_apply_type: z
-    .union([z.literal(1), z.literal(2)])
+    .union([z.literal(0), z.literal(1), z.literal(2)])
     .optional()
-    .describe('1 = minimum item quantity, 2 = minimum order amount'),
+    .describe('0 = no prerequisite, 1 = minimum item quantity, 2 = minimum order amount'),
   variants: z.array(promotionVariantSchema).optional().describe('Applied product/variant pairs'),
   usage_limit: z.number().nullable().optional().describe('Total usage limit'),
+  once_per_customer: z.boolean().optional().describe('Limit to one use per customer'),
+  max_amount_apply: z.number().nullable().optional().describe('Maximum discount amount applied'),
   products_selection: z
     .enum(['all', 'collection_prerequisite', 'variant_prerequisite', 'product_prerequisite'])
     .optional(),
@@ -60,6 +62,19 @@ const promotionSchema = z.object({
   rule_customs: z.array(discountRuleCustomSchema).optional(),
 });
 
+const discountSchema = baseDiscountSchema.extend({
+  code: z.string().describe('Discount/coupon code'),
+  applies_once: z.boolean().optional().describe('Apply discount once per order'),
+  is_promotion: z.boolean().optional().describe('Whether the discount code is treated as a promotion'),
+  is_new_coupon: z.boolean().optional(),
+  channel: z.string().nullable().optional(),
+  location_ids: idArray,
+});
+
+const promotionSchema = baseDiscountSchema.extend({
+  name: z.string().describe('Promotion name'),
+});
+
 export const discountTools: McpTool[] = [
   {
     name: 'haravan_discounts_list',
@@ -75,6 +90,19 @@ export const discountTools: McpTool[] = [
     httpMethod: 'GET',
     path: '/com/discounts.json',
     scopes: ['com.read_discounts'],
+  },
+  {
+    name: 'haravan_discounts_create',
+    project: 'discounts',
+    description:
+      'Create a discount code/coupon. Use carefully: this writes discount configuration in Haravan.',
+    schema: z.object({
+      discount: discountSchema.describe('Discount code object'),
+    }),
+    httpMethod: 'POST',
+    path: '/com/discounts.json',
+    scopes: ['com.write_discounts'],
+    access: 'write',
   },
   {
     name: 'haravan_promotions_list',

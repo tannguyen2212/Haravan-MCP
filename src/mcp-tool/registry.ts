@@ -244,6 +244,7 @@ export const PRESETS: Record<string, string[]> = {
   ],
   'preset.discounts': [
     'haravan_discounts_list',
+    'haravan_discounts_create',
     'haravan_promotions_list',
     'haravan_promotions_get',
     'haravan_promotions_create',
